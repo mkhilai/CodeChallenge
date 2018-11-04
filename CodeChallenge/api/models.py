@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from CodeChallenge import settings
 from rest_framework.authtoken.models import Token
+from django.contrib.auth.models import  BaseUserManager
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
@@ -12,9 +13,13 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 
 class Users(AbstractUser):
 	userID = models.AutoField(db_column='userID', primary_key=True)
+	username = models.CharField(max_length=64, unique=True)
 	email = models.EmailField(db_column='email', max_length=64, db_index=True, unique=True)
 	password = models.CharField(db_column='password', max_length=16)
 	name = models.CharField(db_column='name', max_length=64, null=True)
+
+	USERNAME_FIELD = 'username'
+	REQUIRED_FIELDS = ('email',)
 
 	def __str__(self):
 		return self.email
