@@ -167,5 +167,26 @@ class CompaniesTest(APITestCase):
 		self.assertEqual(get_instances.count(), 2)
 		self.assertEqual(get_response.status_code, status.HTTP_200_OK)
 		self.assertNotEqual(len(get_response.data), 2)
+
+
+class GetTokenTest(APITestCase):
+	def setUp(self):
+		self.TestUserA = Users.objects.create_user('Test User A', 'test_user_a@test.com', 'testpassword')
+
+	def test_get_token(self):
+		data = {
+			"username": "Test User A",
+			"password": "testpassword"
+		}
+		post_response = self.client.post('/login/', data, format='json')
+		token = Token.objects.get(user__email = self.TestUserA.email, user__password = self.TestUserA.password)
+
+		self.assertEqual(post_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(post_response.data['token'], token.key)
 		
+
+
+
+
+
 
