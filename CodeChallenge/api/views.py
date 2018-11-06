@@ -17,7 +17,8 @@ class CreateUsers(generics.CreateAPIView):
 		serializer.is_valid(raise_exception=True)
 		with transaction.atomic():
 			user = serializer.save()
-		return Response(serializer.data, status=status.HTTP_201_CREATED)
+			return Response(serializer.data, status=status.HTTP_201_CREATED)
+		return Response(status=status.HTTP_400_BAD_REQUEST)
 
 class ListCreateCompanies(generics.ListCreateAPIView):
 	queryset = Companies.objects.all()
@@ -38,7 +39,8 @@ class ListCreateCompanies(generics.ListCreateAPIView):
 			for company in companies:
 				company.userID = user_instance
 				company.save()
-		return Response(serializer.data, status=status.HTTP_201_CREATED)
+			return Response(serializer.data, status=status.HTTP_201_CREATED)
+		return Response(status=status.HTTP_400_BAD_REQUEST)
 
 class CompanyDetails(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Companies.objects.all()
