@@ -64,7 +64,6 @@ class CompaniesTest(APITestCase):
 				"country": "Country",
 				"city": "City",
 				"streetAddress": "City 123 00 B",
-				"userID": self.TestUserA.userID
 			},
 			{
 				"name": "Another Company",
@@ -73,7 +72,6 @@ class CompaniesTest(APITestCase):
 				"country": "Country",
 				"city": "City",
 				"streetAddress": "City 321 99 C",
-				"userID": self.TestUserA.userID
 			}
 		]
 
@@ -168,6 +166,97 @@ class CompaniesTest(APITestCase):
 		self.assertEqual(get_response.status_code, status.HTTP_200_OK)
 		self.assertNotEqual(len(get_response.data), 2)
 
+	def test_can_patch_if_company_user_is_logged_in(self):
+		data = self.get_companies_data()
+
+		post_response = self.client.post('/companies/', data, format='json', HTTP_AUTHORIZATION=self.get_token(self.TestUserA))
+		get_instances_before = Companies.objects.get(email="test_company@test.com")
+
+		patch_response = self.client.patch('/companies/'+str(get_instances_before.companyID)+'/', {"country": "New Country"}, format='json', HTTP_AUTHORIZATION=self.get_token(self.TestUserA))
+		get_instances_after = Companies.objects.get(email="test_company@test.com")
+		
+		self.assertEqual(post_response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(get_instances_before.country, 'Country')
+		self.assertEqual(get_instances_after.country, 'New Country')
+
+	def test_cannot_patch_if_different_user_logged_in(self):
+		data = self.get_companies_data()
+
+		post_response = self.client.post('/companies/', data, format='json', HTTP_AUTHORIZATION=self.get_token(self.TestUserA))
+		get_instances_before = Companies.objects.get(email="test_company@test.com")
+
+		patch_response = self.client.patch('/companies/'+str(get_instances_before.companyID)+'/', 
+			{"country": "New Country"}, format='json', HTTP_AUTHORIZATION=self.get_token(self.TestUserB))
+		get_instances_after = Companies.objects.get(email="test_company@test.com")
+		
+		self.assertEqual(post_response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(patch_response.status_code, status.HTTP_401_UNAUTHORIZED)
+		self.assertEqual(get_instances_before.country, 'Country')
+		self.assertEqual(get_instances_after.country, 'Country')
+
+	def make_put_request(self, expected_status, user):
+		data = self.get_companies_data()
+
+		post_response = self.client.post('/companies/', data, format='json', HTTP_AUTHORIZATION=self.get_token(self.TestUserA))
+		get_instances_before = Companies.objects.get(email="test_company@test.com")
+
+		response = self.client.put('/companies/'+str(get_instances_before.companyID)+'/', 
+			{
+				"name": "New Test Company",
+				"email": "new_test_company@test.com",
+				"phone": "+49 123 4567890",
+				"country": "Country",
+				"city": "City",
+				"streetAddress": "City 123 00 B",
+			}, 
+			format='json', HTTP_AUTHORIZATION=self.get_token(user))
+		get_instances_after = Companies.objects.get(companyID=get_instances_before.companyID)
+		
+		self.assertEqual(post_response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(response.status_code, expected_status)
+
+		return get_instances_after
+
+	def test_can_put_if_company_user_is_logged_in(self):
+		get_instances_after = self.make_put_request(status.HTTP_200_OK, self.TestUserA)
+
+		self.assertEqual(get_instances_after.name, "New Test Company")
+		self.assertEqual(get_instances_after.email, "new_test_company@test.com")
+		self.assertEqual(get_instances_after.phone, "+49 123 4567890")
+		self.assertEqual(get_instances_after.country, "Country")
+		self.assertEqual(get_instances_after.city, "City")
+		self.assertEqual(get_instances_after.streetAddress, "City 123 00 B")
+
+	def test_cannot_put_if_different_user_is_logged_in(self):
+		get_instances_after = self.make_put_request(status.HTTP_401_UNAUTHORIZED, self.TestUserB)
+		
+		self.assertEqual(get_instances_after.name, "Test Company")
+		self.assertEqual(get_instances_after.email, "test_company@test.com")
+		self.assertEqual(get_instances_after.phone, "+49 123 4567890")
+		self.assertEqual(get_instances_after.country, "Country")
+		self.assertEqual(get_instances_after.city, "City")
+		self.assertEqual(get_instances_after.streetAddress, "City 123 00 B")
+
+	def check_if_can_delete(self, expected_status, expected_number, expected_total_number, user):
+		data = self.get_companies_data()
+		post_response = self.client.post('/companies/', data, format='json', HTTP_AUTHORIZATION=self.get_token(user))
+		self.assertEqual(Companies.objects.all().count(), 2)
+		get_instances_before = Companies.objects.get(email="test_company@test.com")
+		delete_response = self.client.delete('/companies/'+str(get_instances_before.companyID)+'/', 
+			format='json', HTTP_AUTHORIZATION=self.get_token(self.TestUserA))
+		get_instances_after = Companies.objects.filter(email="test_company@test.com")
+
+		self.assertEqual(post_response.status_code, status.HTTP_201_CREATED)
+		self.assertEqual(delete_response.status_code, expected_status)
+		self.assertEqual(get_instances_after.count(), expected_number)
+		self.assertEqual(Companies.objects.all().count(), expected_total_number)
+
+	def test_can_delete_company(self):
+		self.check_if_can_delete(status.HTTP_200_OK, 0, 1, self.TestUserA)
+
+	def test_cannot_delete_company_if_wrong_user_logged_in(self):
+		self.check_if_can_delete(status.HTTP_401_UNAUTHORIZED, 1, 2, self.TestUserB)
 
 class GetTokenTest(APITestCase):
 	def setUp(self):
@@ -184,9 +273,4 @@ class GetTokenTest(APITestCase):
 		self.assertEqual(post_response.status_code, status.HTTP_200_OK)
 		self.assertEqual(post_response.data['token'], token.key)
 		
-
-
-
-
-
 

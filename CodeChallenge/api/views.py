@@ -49,10 +49,13 @@ class CompanyDetails(generics.RetrieveUpdateDestroyAPIView):
 
 	def update_instance(self, request, is_partial):
 		instance = self.get_object()
-		serializer = self.get_serializer(instance, data=request.data, partial=is_partial)
-		serializer.is_valid(raise_exception=True)
-		serializer.save()
-		return serializer
+		if request.user.userID == instance.userID.userID:
+			serializer = self.get_serializer(instance, data=request.data, partial=is_partial)
+			serializer.is_valid(raise_exception=True)
+			serializer.save()
+			return serializer
+		else:
+			return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 	def get(self, request, *args, **kwargs):
 		instance = self.get_object()
@@ -61,15 +64,20 @@ class CompanyDetails(generics.RetrieveUpdateDestroyAPIView):
 
 	def update(self, request, *args, **kwargs):
 		response = self.update_instance(request, is_partial=False)
-		return Response(response.data, status=status.HTTP_200_OK)
+		if response.data:
+			return Response(response.data, status=status.HTTP_200_OK)
+		else:
+			return response
 
 	def partial_update(self, request, *args, **kwargs):
 		response = self.update_instance(request, is_partial=True)
-		return Response(response.data, status=status.HTTP_200_OK)
+		if response.data:
+			return Response(response.data, status=status.HTTP_200_OK)
+		else:
+			return response
 
 	def delete(self, request, *args, **kwargs):
 		instance = self.get_object()
-		print(instance)
 		if request.user.userID == instance.userID.userID:
 			instance.delete()
 			return Response(status=status.HTTP_200_OK)
